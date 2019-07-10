@@ -198,6 +198,8 @@ type DbRequest = {
 	objectStore: string;
 }
 
+let calls = 0
+
 /**
  * A transaction is usually committed after all requests placed against the transaction have been executed and their
  * returned results handled, and no new requests have been placed against the transaction.
@@ -213,9 +215,10 @@ export class IndexedDbTransaction implements DbTransaction {
 		this._transaction = transaction
 		this._onUnknownError = onUnknownError
 		this._promise = Promise.fromCallback((callback) => {
+
 			transaction.onerror = (event) => {
 				this._handleDbError(event, this._transaction, "transaction.onerror", (e) => {
-					throw e
+					callback(e)
 				})
 			}
 			transaction.oncomplete = (event) => {
@@ -330,7 +333,9 @@ export class IndexedDbTransaction implements DbTransaction {
 			"\nevent.target.error: " + (target && target.error ? target.error.message : '<null>') +
 			"\nevent.target.error.name: " + (target && target.error ? target.error.name : '<null>')
 
-		if (target && target.error && target.error.name === "UnknownError") {
+		if (target && target.error
+			&& (target.error.name === "UnknownError"
+				|| (typeof target.error.message === "string" && target.error.message.contains("UnknownError")))) {
 			this._onUnknownError(target.error)
 			callback(new IndexingNotSupportedError(msg, this._transaction.error))
 		} else {
